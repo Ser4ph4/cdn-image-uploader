@@ -1,10 +1,11 @@
+import { z } from "zod";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { createUpload, updateUploadStats, getUserUploads, getUploadStats } from "./db";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -17,12 +18,41 @@ export const appRouter = router({
     }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  uploads: router({
+    list: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return [];
+      return getUserUploads(ctx.user.id);
+    }),
+    stats: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return null;
+      return getUploadStats(ctx.user.id);
+    }),
+    create: publicProcedure
+      .input(z.object({
+        filename: z.string(),
+        originalFilename: z.string(),
+        fileSize: z.number(),
+        mimeType: z.string(),
+        githubUrl: z.string(),
+        cdnLink: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Unauthorized");
+        
+        await createUpload({
+          userId: ctx.user.id,
+          ...input,
+        });
+
+        const allUploads = await getUserUploads(ctx.user.id);
+        const totalUploads = allUploads.length;
+        const totalSize = allUploads.reduce((sum, u) => sum + u.fileSize, 0);
+        
+        await updateUploadStats(ctx.user.id, totalUploads, totalSize);
+        
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

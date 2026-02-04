@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, uploads, uploadStats, InsertUpload } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,58 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function createUpload(upload: InsertUpload) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db.insert(uploads).values(upload);
+  return result;
+}
+
+export async function getUserUploads(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  return db
+    .select()
+    .from(uploads)
+    .where(eq(uploads.userId, userId))
+    .orderBy((t) => t.uploadedAt);
+}
+
+export async function getUploadStats(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const result = await db
+    .select()
+    .from(uploadStats)
+    .where(eq(uploadStats.userId, userId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function updateUploadStats(userId: number, totalUploads: number, totalSize: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const existing = await getUploadStats(userId);
+
+  if (existing) {
+    await db
+      .update(uploadStats)
+      .set({ totalUploads, totalSize })
+      .where(eq(uploadStats.userId, userId));
+  } else {
+    await db.insert(uploadStats).values({ userId, totalUploads, totalSize });
+  }
+}

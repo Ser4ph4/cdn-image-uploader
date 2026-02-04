@@ -25,4 +25,28 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const uploads = mysqlTable("uploads", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  filename: varchar("filename", { length: 255 }).notNull(),
+  originalFilename: varchar("originalFilename", { length: 255 }).notNull(),
+  fileSize: int("fileSize").notNull(),
+  mimeType: varchar("mimeType", { length: 100 }).notNull(),
+  githubUrl: text("githubUrl").notNull(),
+  cdnLink: text("cdnLink").notNull(),
+  uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
+});
+
+export type Upload = typeof uploads.$inferSelect;
+export type InsertUpload = typeof uploads.$inferInsert;
+
+export const uploadStats = mysqlTable("uploadStats", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  totalUploads: int("totalUploads").default(0).notNull(),
+  totalSize: int("totalSize").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UploadStats = typeof uploadStats.$inferSelect;
+export type InsertUploadStats = typeof uploadStats.$inferInsert;
