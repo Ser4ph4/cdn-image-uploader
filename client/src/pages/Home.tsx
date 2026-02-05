@@ -19,6 +19,8 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [githubToken, setGithubToken] = useState("");
+  const [githubOwner, setGithubOwner] = useState("Ser4ph4");
+  const [githubRepo, setGithubRepo] = useState("ser4ph4.github.io");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -27,12 +29,15 @@ export default function Home() {
   const statsQuery = trpc.uploads.stats.useQuery();
   const createUploadMutation = trpc.uploads.create.useMutation();
 
-  // Carregar token do localStorage
+  // Carregar dados do localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem("github_token");
-    if (savedToken) {
-      setGithubToken(savedToken);
-    }
+    const savedOwner = localStorage.getItem("github_owner");
+    const savedRepo = localStorage.getItem("github_repo");
+
+    if (savedToken) setGithubToken(savedToken);
+    if (savedOwner) setGithubOwner(savedOwner);
+    if (savedRepo) setGithubRepo(savedRepo);
   }, []);
 
   const handleFileSelect = (file: File) => {
@@ -79,8 +84,8 @@ export default function Home() {
 
       const response = await commitToGitHub({
         token: githubToken,
-        owner: "Ser4ph4",
-        repo: "ser4ph4.github.io",
+        owner: githubOwner,
+        repo: githubRepo,
         path,
         message: `Upload de imagem: ${selectedFile.name}`,
         content: base64,
@@ -89,7 +94,7 @@ export default function Home() {
       setUploadProgress(85);
 
       // Gerar link CDN
-      const cdnLink = generateCDNLink("Ser4ph4", "ser4ph4.github.io", "main", path);
+      const cdnLink = generateCDNLink(githubOwner, githubRepo, "main", path);
 
       setUploadProgress(90);
 
@@ -260,6 +265,10 @@ export default function Home() {
                 <div className="sticky top-8">
                   <GitHubTokenInput
                     onTokenChange={setGithubToken}
+                    onRepositoryChange={(owner, repo) => {
+                      setGithubOwner(owner);
+                      setGithubRepo(repo);
+                    }}
                     isValidating={isUploading}
                   />
                 </div>

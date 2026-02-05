@@ -45,3 +45,11 @@
 - [ ] Busca e filtro no histórico
 - [ ] Temas escuro/claro
 - [ ] Exportação de estatísticas
+
+
+## Bugs Encontrados e Corrigidos
+
+- [x] Erro: "Resource not accessible by personal access token" ao fazer upload
+  - Solução: Adicionado suporte a repositório customizado com validação de permissões
+  - Adicionado feedback específico sobre permissões do token
+  - Adicionado campos para configurar owner e repo dinamicamente

@@ -113,9 +113,14 @@ export function generateCDNLink(owner: string, repo: string, branch: string, pat
 }
 
 /**
- * Valida o token do GitHub fazendo uma requisição simples
+ * Valida o token do GitHub e retorna informações sobre permissões
  */
-export async function validateGitHubToken(token: string): Promise<boolean> {
+export async function validateGitHubToken(token: string): Promise<{
+  valid: boolean;
+  scopes: string[];
+  message: string;
+  username?: string;
+}> {
   try {
     const response = await fetch("https://api.github.com/user", {
       headers: {
@@ -124,9 +129,44 @@ export async function validateGitHubToken(token: string): Promise<boolean> {
       },
     });
 
-    return response.ok;
+    if (!response.ok) {
+      return {
+        valid: false,
+        scopes: [],
+        message: "Token inválido ou expirado",
+      };
+    }
+
+    const userData = await response.json() as { login: string };
+
+    // Extrair scopes do header
+    const scopesHeader = response.headers.get("x-oauth-scopes") || "";
+    const scopes = scopesHeader.split(", ").filter((s) => s);
+
+    // Verificar se tem permissão 'repo'
+    const hasRepoScope = scopes.includes("repo") || scopes.includes("public_repo");
+
+    if (!hasRepoScope) {
+      return {
+        valid: false,
+        scopes,
+        message: "Token não tem permissão de escrita em repositórios. Crie um novo token com escopo 'repo'",
+        username: userData.login,
+      };
+    }
+
+    return {
+      valid: true,
+      scopes,
+      message: "Token validado com sucesso",
+      username: userData.login,
+    };
   } catch (error) {
-    return false;
+    return {
+      valid: false,
+      scopes: [],
+      message: "Erro ao validar token",
+    };
   }
 }
 
@@ -137,7 +177,7 @@ export async function getRepositoryInfo(
   token: string,
   owner: string,
   repo: string
-): Promise<{ defaultBranch: string; exists: boolean }> {
+): Promise<{ defaultBranch: string; exists: boolean; isPrivate?: boolean }> {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
@@ -153,9 +193,66 @@ export async function getRepositoryInfo(
       return { defaultBranch: "main", exists: false };
     }
 
-    const data = await response.json() as { default_branch: string };
-    return { defaultBranch: data.default_branch, exists: true };
+    const data = await response.json() as { 
+      default_branch: string;
+      private: boolean;
+    };
+    return { 
+      defaultBranch: data.default_branch, 
+      exists: true,
+      isPrivate: data.private,
+    };
   } catch (error) {
     return { defaultBranch: "main", exists: false };
+  }
+}
+
+/**
+ * Testa acesso de escrita ao repositório
+ */
+export async function testRepositoryAccess(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<{ canWrite: boolean; message: string }> {
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        canWrite: false,
+        message: "Repositório não encontrado ou sem acesso",
+      };
+    }
+
+    const data = await response.json() as { 
+      permissions?: { push: boolean };
+      private: boolean;
+    };
+
+    if (data.permissions?.push === false) {
+      return {
+        canWrite: false,
+        message: "Sem permissão de escrita neste repositório",
+      };
+    }
+
+    return {
+      canWrite: true,
+      message: "Acesso de escrita confirmado",
+    };
+  } catch (error) {
+    return {
+      canWrite: false,
+      message: "Erro ao verificar acesso",
+    };
   }
 }
