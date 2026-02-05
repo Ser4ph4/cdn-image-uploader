@@ -53,3 +53,12 @@
   - Solução: Adicionado suporte a repositório customizado com validação de permissões
   - Adicionado feedback específico sobre permissões do token
   - Adicionado campos para configurar owner e repo dinamicamente
+
+
+## Novas Funcionalidades Solicitadas
+
+- [x] Implementar dark theme elegante
+  - Dark theme como padrão
+  - Tema switchável (claro/escuro)
+  - Botão de alternância no header
+  - Cores otimizadas para contraste e legibilidade
